@@ -5,12 +5,15 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
+#include <list>
 
 using namespace std;
 
 class Worker
 {
 public:
+    bool isReader = 0;
+    bool isWriter = 0;
     virtual void doWork(vector<string>& text) = 0;
 };
 
@@ -19,7 +22,7 @@ class FileReader : public Worker
 private:
     string filename;
 public:
-    FileReader(string filename) : filename(filename) {};
+    FileReader(string filename);
     void doWork(vector<string>& text) override;
 };
 
@@ -28,7 +31,7 @@ class FileWriter : public Worker
 private:
     string filename;
 public:
-    FileWriter(string filename) : filename(filename) {};
+    FileWriter(string filename);
     void doWork(vector<string>& text) override;
 };
 
@@ -69,12 +72,11 @@ public:
 class BlockProgram
 {
 private:
-    map<unsigned int, shared_ptr<Worker>> blocks;
-    vector<int> queue;
+    list <shared_ptr<Worker>> queue;
     string input;
     string output;
 public:
-    BlockProgram(map<unsigned int, std::shared_ptr<Worker>> blocks, vector<int> queue, string input, string output) : blocks(blocks), queue(queue), input(input), output(output) {}
+    BlockProgram(list <shared_ptr<Worker>> queue, string input, string output) : queue(queue), input(input), output(output) {}
     shared_ptr<Worker> BlocksParser(ifstream& fin);
     void execute();
 };
@@ -82,5 +84,5 @@ public:
 class Parser
 {
 public:
-    static BlockProgram parser(string file, string input, string output);
+    static BlockProgram parser(string file, string input, string output, bool inputFromWorkflow, bool outputFromWorkflow);
 };
