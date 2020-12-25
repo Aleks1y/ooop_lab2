@@ -3,6 +3,8 @@
 using namespace std;
 int main(int argc, char *argv[])
 {
+    bool inputFromWorkflow = 1,
+         outputFromWorkflow = 1;
     try
     {
         if (argc < 2)
@@ -24,24 +26,22 @@ int main(int argc, char *argv[])
                 {
                     wasInput = true;
                     input = argv[++i];
+                    inputFromWorkflow = 0;
                 }
                 else if (((string)"-o") == argv[i] && i != argc && !wasOutput)
                 {
                     wasOutput = true;
                     output = argv[++i];
+                    outputFromWorkflow = 0;
                 }
                 else
                     throw exception("Wrong args from prompt!");
             }
         }
 
-        Parser::parser(workflow, input, output).execute();
+        Parser::parser(workflow, input, output, inputFromWorkflow, outputFromWorkflow).execute();
     }
     catch (const char *str)
-    {
-        cout << str;
-    }
-    catch (string str)
     {
         cout << str;
     }
