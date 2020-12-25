@@ -2,6 +2,12 @@
 
 using namespace std;
 
+FileReader::FileReader(string filename)
+{
+    this->filename = filename;
+    this->isReader = 1;
+}
+
 void FileReader::doWork(vector<string>& text)
 {
     string str;
@@ -14,9 +20,14 @@ void FileReader::doWork(vector<string>& text)
     fin.close();
 }
 
+FileWriter::FileWriter(string filename)
+{
+    this->filename = filename;
+    this->isWriter = 1;
+}
+
 void FileWriter::doWork(vector<string>& text)
 {
-    string str;
     ofstream fout(filename);
     if (!fout)
         throw("Can not open " + filename);
@@ -31,10 +42,17 @@ void FileWriter::doWork(vector<string>& text)
 
 void Grep::doWork(vector<string>& text)
 {
-    for (size_t i = 0; i < text.size(); i++)
+    size_t i = 0;
+    while (i < text.size())
     {
         if (text[i].find(word) == string::npos)
+        {
             text.erase(text.begin() + i);
+        }
+        else
+        {
+            i++;
+        }
     }
 }
 
@@ -45,6 +63,7 @@ void Sort::doWork(vector<string>& text)
 
 void Replace::doWork(vector<string>& text)
 {
+    if (text.size() == 0)
     for (size_t i = 0; i < text.size(); i++)
     {
         unsigned int index = text[i].find(word1);
@@ -58,14 +77,13 @@ void Replace::doWork(vector<string>& text)
 
 void Dump::doWork(vector<string>& text)
 {
-    string str;
     ofstream fout(filename);
     if (!fout)
         throw("Can not open " + filename);
 
     for (size_t i = 0; i < text.size(); i++)
     {
-        fout << text[i];
+        fout << text[i] << endl;
     }
 
     fout.close();
@@ -83,7 +101,7 @@ shared_ptr<Worker> BlocksParser(ifstream& fin)
     if (tmp0 == "readfile")
     {
         fin >> tmp1;
-        return make_shared<FileReader>(tmp1);;
+        return make_shared<FileReader>(tmp1);
     }
     else if (tmp0 == "writefile")
     {
@@ -109,18 +127,15 @@ shared_ptr<Worker> BlocksParser(ifstream& fin)
         fin >> tmp1;
         return make_shared<Dump>(tmp1);
     }
-    else
-    {
-        throw("Bad name: " + tmp0);
-        return nullptr;
-    }
+    throw("Bad name: " + tmp0);
 }
 
-BlockProgram Parser::parser(string file, string input, string output)
+BlockProgram Parser::parser(string file, string input, string output, bool inputFromWorkflow, bool outputFromWorkflow)
 {
     unsigned int index;
-    vector<int> queue;
+    vector<int> order;
     map<unsigned int, shared_ptr<Worker>> blocks;
+    list <shared_ptr<Worker>> queue;
     ifstream fin(file);
     if(!fin.is_open())
         throw("Can not open " + file +" file!");
@@ -156,7 +171,10 @@ BlockProgram Parser::parser(string file, string input, string output)
     {
         fin >> tmp0;
         index = stoi(tmp0);
-        queue.push_back(index);
+        if(!blocks.count(index))
+            throw("No description for block number" + tmp0);\
+
+        order.push_back(index);
 
         if (fin.eof())
             break;
@@ -164,17 +182,46 @@ BlockProgram Parser::parser(string file, string input, string output)
         fin >> tmp0;
         if (tmp0 != "->")
             throw("Unknown symbol in" + file+ ":" + tmp0);
-        
     }
 
-    return BlockProgram(blocks, queue, move(input), move(output));
+    if (!blocks[order[0]]->isReader)
+        throw("Reader is not first");
+
+    if (!blocks[order[order.size() - 1]]->isWriter)
+        throw("Writer is not last");
+
+    for (size_t j = 1; j < order.size() - 1; j++)
+    {
+        if (blocks[order[j]]->isReader)
+            throw("Reader in the middle");
+
+        if (blocks[order[j]]->isWriter)
+            throw("Writer in the middle");
+    }
+
+    for (size_t i = 0; i < order.size(); i++)
+    {
+        queue.push_back(blocks[order[i]]);
+    }
+
+    if (!outputFromWorkflow)
+    {
+        queue.push_back(make_shared<FileWriter>(output));
+    }
+
+    if (!inputFromWorkflow)
+    {
+        queue.push_front(make_shared<FileReader>(input));
+    }
+
+    return BlockProgram(queue, move(input), move(output));
 }
 
 void BlockProgram::execute()
 {
     vector<string> text;
-    for (size_t i = 0; i < queue.size(); i++)
+    for (auto it : queue)
     {
-        blocks[queue[i]]->doWork(text);
+        it->doWork(text);
     }
 }
