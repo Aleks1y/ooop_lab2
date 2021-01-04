@@ -2,52 +2,48 @@
 
 using namespace std;
 
-FileReader::FileReader(string filename)
+void FileReader::doWork(optional<vector<string>>& text)
 {
-    this->filename = filename;
-    this->isReader = 1;
-}
+    if(text)
+        throw("Reader position error");
 
-void FileReader::doWork(vector<string>& text)
-{
     string str;
     ifstream fin(filename);
     if (!fin)
         throw("Can not open " + filename);
+
+    vector<string> t;
+    text = t;
+
     while (getline(fin, str))
-        text.push_back(str);
+        text->push_back(str);
 
     fin.close();
 }
 
-FileWriter::FileWriter(string filename)
-{
-    this->filename = filename;
-    this->isWriter = 1;
-}
-
-void FileWriter::doWork(vector<string>& text)
+void FileWriter::doWork(optional<vector<string>>& text)
 {
     ofstream fout(filename);
     if (!fout)
         throw("Can not open " + filename);
 
-    for (size_t i = 0; i < text.size(); i++)
+    for (const auto& line : *text)
     {
-        fout << text[i] << endl;
+        fout << line << endl;
     }
 
+    text = nullopt;
     fout.close();
 }
 
-void Grep::doWork(vector<string>& text)
+void Grep::doWork(optional<vector<string>>& text)
 {
     size_t i = 0;
-    while (i < text.size())
+    while (i < text->size())
     {
-        if (text[i].find(word) == string::npos)
+        if ((*text)[i].find(word) == string::npos)
         {
-            text.erase(text.begin() + i);
+            text->erase(text->begin() + i);
         }
         else
         {
@@ -56,40 +52,39 @@ void Grep::doWork(vector<string>& text)
     }
 }
 
-void Sort::doWork(vector<string>& text)
+void Sort::doWork(optional<vector<string>>& text)
 {
-    sort(text.begin(), text.end());
+    sort(text->begin(), text->end());
 }
 
-void Replace::doWork(vector<string>& text)
+void Replace::doWork(optional<vector<string>>& text)
 {
-    if (text.size() == 0)
-    for (size_t i = 0; i < text.size(); i++)
+    for (auto& line : *text)
     {
-        unsigned int index = text[i].find(word1);
+        unsigned int index = line.find(word1);
         while (index != string::npos)
         {
-            text[i].replace(index, word1.size(), word2);
-            index = text[i].find(word1);
+            line.replace(index, word1.size(), word2);
+            index = line.find(word1);
         }
     }
 }
 
-void Dump::doWork(vector<string>& text)
+void Dump::doWork(optional<vector<string>>& text)
 {
     ofstream fout(filename);
     if (!fout)
         throw("Can not open " + filename);
 
-    for (size_t i = 0; i < text.size(); i++)
+    for(const auto& line: *text)
     {
-        fout << text[i] << endl;
+        fout << line << endl;
     }
 
     fout.close();
 }
 
-shared_ptr<Worker> BlocksParser(ifstream& fin)
+shared_ptr<Worker> WorkerFabric(ifstream& fin)
 {
     string tmp0, tmp1;
     fin >> tmp0;
@@ -160,7 +155,7 @@ BlockProgram Parser::parser(string file, string input, string output, bool input
         if (blocks.count(index))
             throw("Index " + to_string(index) + " already exists!");
             
-        blocks[index] = BlocksParser(fin);
+        blocks[index] = WorkerFabric(fin);
         fin >> tmp0;
     }
 
@@ -184,21 +179,6 @@ BlockProgram Parser::parser(string file, string input, string output, bool input
             throw("Unknown symbol in" + file+ ":" + tmp0);
     }
 
-    if (!blocks[order[0]]->isReader)
-        throw("Reader is not first");
-
-    if (!blocks[order[order.size() - 1]]->isWriter)
-        throw("Writer is not last");
-
-    for (size_t j = 1; j < order.size() - 1; j++)
-    {
-        if (blocks[order[j]]->isReader)
-            throw("Reader in the middle");
-
-        if (blocks[order[j]]->isWriter)
-            throw("Writer in the middle");
-    }
-
     for (size_t i = 0; i < order.size(); i++)
     {
         queue.push_back(blocks[order[i]]);
@@ -219,9 +199,18 @@ BlockProgram Parser::parser(string file, string input, string output, bool input
 
 void BlockProgram::execute()
 {
-    vector<string> text;
+    optional<vector<string>> text;
     for (auto it : queue)
     {
-        it->doWork(text);
+        if (!text)
+        {
+            it->doWork(text);
+            if (!text)
+                throw("Writer position error");
+        }
+        else
+        {
+            it->doWork(text);
+        }
     }
 }
