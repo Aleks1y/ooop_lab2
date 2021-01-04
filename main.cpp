@@ -45,6 +45,10 @@ int main(int argc, char *argv[])
     {
         cout << str;
     }
+    catch (string str)
+    {
+        cout << str;
+    }
     catch (exception& ex)
     {
         cout << ex.what();
