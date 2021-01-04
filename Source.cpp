@@ -23,6 +23,9 @@ void FileReader::doWork(optional<vector<string>>& text)
 
 void FileWriter::doWork(optional<vector<string>>& text)
 {
+    if (!text)
+        throw("Writer position error");
+
     ofstream fout(filename);
     if (!fout)
         throw("Can not open " + filename);
@@ -38,6 +41,9 @@ void FileWriter::doWork(optional<vector<string>>& text)
 
 void Grep::doWork(optional<vector<string>>& text)
 {
+    if (!text)
+        throw("Reader / Writer position error");
+
     size_t i = 0;
     while (i < text->size())
     {
@@ -54,11 +60,17 @@ void Grep::doWork(optional<vector<string>>& text)
 
 void Sort::doWork(optional<vector<string>>& text)
 {
+    if (!text)
+        throw("Reader / Writer position error");
+
     sort(text->begin(), text->end());
 }
 
 void Replace::doWork(optional<vector<string>>& text)
 {
+    if (!text)
+        throw("Reader / Writer position error");
+
     for (auto& line : *text)
     {
         unsigned int index = line.find(word1);
@@ -72,6 +84,9 @@ void Replace::doWork(optional<vector<string>>& text)
 
 void Dump::doWork(optional<vector<string>>& text)
 {
+    if (!text)
+        throw("Reader / Writer position error");
+
     ofstream fout(filename);
     if (!fout)
         throw("Can not open " + filename);
@@ -202,15 +217,6 @@ void BlockProgram::execute()
     optional<vector<string>> text;
     for (auto it : queue)
     {
-        if (!text)
-        {
-            it->doWork(text);
-            if (!text)
-                throw("Writer position error");
-        }
-        else
-        {
-            it->doWork(text);
-        }
+       it->doWork(text);
     }
 }
